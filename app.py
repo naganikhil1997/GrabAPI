@@ -62,4 +62,4 @@ def generate_recipe_info():
         return jsonify({"error": "Failed to parse response as JSON", "details": response.text}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
