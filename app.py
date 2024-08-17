@@ -4,15 +4,11 @@ import google.generativeai as genai
 import json
 import logging
 from dotenv import load_dotenv
-from flask_cors import CORS  # Import CORS
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
-
-# Initialize CORS
-CORS(app)  # Allow all origins by default
 
 # Get API key from environment variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -43,14 +39,15 @@ def generate_recipe_info():
     You are an expert recipe assistant. Given the following request, provide detailed information about the top 10 recipes, including:
 
     1. The cost estimation of each item 
-    5. Write the short summary of the problem and your suggested resolutions. 
     2. The calories for each item.
     3. The overall budget for the recipes.
     4. The quantity of ingredients required for each recipe.
+    5. Write the short summary of the problem and your suggested resolutions.
+                                         
 
     Request: {user_input}
 
-    Provide the response in a structured format with headings, and include all relevant details. Ensure that cost and calorie details are included in a descriptive model & table format.
+  If the input is a greeting like "hi" or "hello", respond appropriately with a greeting message. Otherwise, provide the response in a structured format with headings, and include all relevant details. Ensure that cost and calorie details are included in a descriptive model & table format.
     """)
 
     logging.debug(f"Raw response: {response.text}")
