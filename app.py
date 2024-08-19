@@ -60,6 +60,10 @@ def create_model(api_key: str):
                                 type=content.Type.STRING,
                                 description="Caloric content of the dish",
                             ),
+                            "servings": content.Schema(
+                                type=content.Type.STRING,
+                                description="Number of servings the dish provides",
+                            ),
                         },
                     ),
                 ),
@@ -94,7 +98,7 @@ def generate_response():
             {
                 "role": "user",
                 "parts": [
-                    f"Generate a detailed response with a personalized message based on the following request: {user_query}. Include a greeting or well-wish for the occasion and then provide detailed information such as dish name, description, step-by-step recipe, ingredients, cost, and calories for each dish. The response should be in JSON format.",
+                    f"Generate a detailed response with a personalized message based on the following request: {user_query}. Include a greeting or well-wish for the occasion and then provide detailed information such as dish name, description, step-by-step recipe, ingredients, cost, calories, and number of servings for each dish. The response should be in JSON format.",
                 ],
             },
         ]
