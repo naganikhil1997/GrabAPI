@@ -1,62 +1,107 @@
 from flask import Flask, request, jsonify
 import os
 import google.generativeai as genai
-import json
-import logging
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+from google.ai.generativelanguage_v1beta.types import content
 
 app = Flask(__name__)
 
-# Get API key from environment variables
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+def create_model(api_key: str):
+    genai.configure(api_key=api_key)
 
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 64,
-    "max_output_tokens": 8192,
-    "response_mime_type": "application/json",  
-}
+    generation_config = {
+        "temperature": 1,
+        "top_p": 0.95,
+        "top_k": 64,
+        "max_output_tokens": 8192,
+        "response_schema": content.Schema(
+            type=content.Type.OBJECT,
+            description="Generated response based on user request about food items or dishes",
+            properties={
+                "message": content.Schema(
+                    type=content.Type.STRING,
+                    description="Personalized message or greeting",
+                ),
+                "description": content.Schema(
+                    type=content.Type.STRING,
+                    description="Description or summary of the user's query and generated information",
+                ),
+                "dishes": content.Schema(
+                    type=content.Type.ARRAY,
+                    items=content.Schema(
+                        type=content.Type.OBJECT,
+                        properties={
+                            "dish_name": content.Schema(
+                                type=content.Type.STRING,
+                                description="Name of the dish",
+                            ),
+                            "description": content.Schema(
+                                type=content.Type.STRING,
+                                description="Detailed description of the dish",
+                            ),
+                            "recipe_steps": content.Schema(
+                                type=content.Type.ARRAY,
+                                items=content.Schema(
+                                    type=content.Type.STRING,
+                                    description="Step-by-step instructions for making the dish",
+                                ),
+                            ),
+                            "ingredients": content.Schema(
+                                type=content.Type.ARRAY,
+                                items=content.Schema(
+                                    type=content.Type.STRING,
+                                    description="Ingredients required for the dish",
+                                ),
+                            ),
+                            "cost": content.Schema(
+                                type=content.Type.STRING,
+                                description="Estimated cost to make the dish",
+                            ),
+                            "calories": content.Schema(
+                                type=content.Type.STRING,
+                                description="Caloric content of the dish",
+                            ),
+                        },
+                    ),
+                ),
+            },
+        ),
+        "response_mime_type": "application/json",
+    }
 
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    generation_config=generation_config,
-)
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=generation_config,
+    )
+    
+    return model
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+@app.route('/generate', methods=['POST'])
+def generate_response():
+    data = request.json
+    user_query = data.get('query', '')
 
-@app.route('/generate_recipe_info', methods=['POST'])
-def generate_recipe_info():
-    user_input = request.json.get('user_input')
+    if not user_query:
+        return jsonify({'error': 'No query provided'}), 400
 
-    chat_session = model.start_chat(history=[])
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return jsonify({'error': 'API key not found'}), 500
 
-    response = chat_session.send_message(f"""
-    You are an expert recipe assistant. Given the following request, provide detailed information about the top 10 recipes, including:
-
-    1. The cost estimation of each item 
-    2. The calories for each item.
-    3. The overall budget for the recipes.
-    4. The quantity of ingredients required for each recipe.
-    5. Write the short summary of the problem and your suggested resolutions.
-                                         
-
-    Request: {user_input}
-
-  If the input is a greeting like "hi" or "hello", respond appropriately with a greeting message. Otherwise, provide the response in a structured format with headings, and include all relevant details. Ensure that cost and calorie details are included in a descriptive model & table format.
-    """)
-
-    logging.debug(f"Raw response: {response.text}")
-
-    try:
-        response_json = json.loads(response.text)
-        return jsonify(response_json)
-    except json.JSONDecodeError:
-        return jsonify({"error": "Failed to parse response as JSON", "details": response.text}), 500
+    model = create_model(api_key)
+    
+    chat_session = model.start_chat(
+        history=[
+            {
+                "role": "user",
+                "parts": [
+                    f"Generate a detailed response with a personalized message based on the following request: {user_query}. Include a greeting or well-wish for the occasion and then provide detailed information such as dish name, description, step-by-step recipe, ingredients, cost, and calories for each dish. The response should be in JSON format.",
+                ],
+            },
+        ]
+    )
+    
+    response = chat_session.send_message(user_query)
+    return jsonify(response.text)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
